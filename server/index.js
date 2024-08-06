@@ -1,28 +1,27 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+var app = require('express')();
+var http = require('http').createServer(app);
+var io = require('socket.io')(http);
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000", // Allow requests from your frontend
-    methods: ["GET", "POST"]
-  }
-});
+app.get('/view', (req, res) => {
+    res.sendFile(__dirname + '/display.html');
+})
 
-io.on('connection', (socket) => {
-  console.log('A user connected');
+io.on('connection', (socket)=> {
 
-  socket.on('signal', (data) => {
-    socket.broadcast.emit('signal', data);
-  });
+    socket.on("join-message", (roomId) => {
+        socket.join(roomId);
+        console.log("User joined in a room : " + roomId);
+    })
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
-  });
-});
+    socket.on("screen-data", function(data) {
+        data = JSON.parse(data);
+        var room = data.room;
+        var imgStr = data.image;
+        socket.broadcast.to(room).emit('screen-data', imgStr);
+    })
+})
 
-server.listen(3001, () => {
-  console.log('Signaling server running on port 3001');
-});
+var server_port = process.env.YOUR_PORT || process.env.PORT || 5000;
+http.listen(server_port, () => {
+    console.log("Started on : "+ server_port);
+})
